@@ -1,9 +1,10 @@
 import { Component, OnInit, ViewChild } from "@angular/core";
 import { FormControl, FormGroup, Validators } from "@angular/forms";
 import { Router } from "@angular/router";
-import { firstValueFrom, Observable } from "rxjs";
+import { firstValueFrom, Observable, of, switchMap } from "rxjs";
 
 import { ApiService } from "@bitwarden/common/abstractions/api.service";
+import { AccountService } from "@bitwarden/common/auth/abstractions/account.service";
 import { TokenService } from "@bitwarden/common/auth/abstractions/token.service";
 import { BillingAccountProfileStateService } from "@bitwarden/common/billing/abstractions/account/billing-account-profile-state.service";
 import { EnvironmentService } from "@bitwarden/common/platform/abstractions/environment.service";
@@ -37,6 +38,7 @@ export class PremiumComponent implements OnInit {
   protected addonForm = new FormGroup({
     additionalStorage: new FormControl(0, [Validators.max(99), Validators.min(0)]),
   });
+
   constructor(
     private apiService: ApiService,
     private i18nService: I18nService,
@@ -48,18 +50,28 @@ export class PremiumComponent implements OnInit {
     private environmentService: EnvironmentService,
     private billingAccountProfileStateService: BillingAccountProfileStateService,
     private toastService: ToastService,
+    private accountService: AccountService,
   ) {
     this.selfHosted = platformUtilsService.isSelfHost();
-    this.canAccessPremium$ = billingAccountProfileStateService.hasPremiumFromAnySource$;
+    this.canAccessPremium$ = this.accountService.activeAccount$.pipe(
+      switchMap((account) =>
+        account
+          ? this.billingAccountProfileStateService.hasPremiumFromAnySource$(account.id)
+          : of(false),
+      ),
+    );
   }
-  protected setSelectedFile(event: Event) {
-    const fileInputEl = <HTMLInputElement>event.target;
-    const file: File = fileInputEl.files.length > 0 ? fileInputEl.files[0] : null;
-    this.licenseFile = file;
-  }
+
   async ngOnInit() {
     this.cloudWebVaultUrl = await firstValueFrom(this.environmentService.cloudWebVaultUrl$);
-    if (await firstValueFrom(this.billingAccountProfileStateService.hasPremiumPersonally$)) {
+
+    const account = await firstValueFrom(this.accountService.activeAccount$);
+    if (
+      account &&
+      (await firstValueFrom(
+        this.billingAccountProfileStateService.hasPremiumPersonally$(account.id),
+      ))
+    ) {
       // FIXME: Verify that this floating promise is intentional. If it is, add an explanatory comment and ensure there is proper error handling.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.router.navigate(["/settings/subscription/user-subscription"]);

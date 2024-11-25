@@ -2,9 +2,10 @@ import { Component, ViewChild } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormControl, FormGroup, Validators } from "@angular/forms";
 import { ActivatedRoute, Router } from "@angular/router";
-import { combineLatest, concatMap, from, Observable, of } from "rxjs";
+import { combineLatest, concatMap, from, Observable, of, switchMap } from "rxjs";
 
 import { ApiService } from "@bitwarden/common/abstractions/api.service";
+import { AccountService } from "@bitwarden/common/auth/abstractions/account.service";
 import { TokenService } from "@bitwarden/common/auth/abstractions/token.service";
 import { BillingAccountProfileStateService } from "@bitwarden/common/billing/abstractions";
 import { FeatureFlag } from "@bitwarden/common/enums/feature-flag.enum";
@@ -49,6 +50,7 @@ export class PremiumV2Component {
   constructor(
     private activatedRoute: ActivatedRoute,
     private apiService: ApiService,
+    private accountService: AccountService,
     private billingAccountProfileStateService: BillingAccountProfileStateService,
     private configService: ConfigService,
     private environmentService: EnvironmentService,
@@ -61,11 +63,22 @@ export class PremiumV2Component {
   ) {
     this.isSelfHost = this.platformUtilsService.isSelfHost();
 
-    this.hasPremiumFromAnyOrganization$ =
-      this.billingAccountProfileStateService.hasPremiumFromAnyOrganization$;
+    this.hasPremiumFromAnyOrganization$ = this.accountService.activeAccount$.pipe(
+      switchMap((account) =>
+        account
+          ? this.billingAccountProfileStateService.hasPremiumFromAnyOrganization$(account.id)
+          : of(false),
+      ),
+    );
 
     combineLatest([
-      this.billingAccountProfileStateService.hasPremiumPersonally$,
+      this.accountService.activeAccount$.pipe(
+        switchMap((account) =>
+          account
+            ? this.billingAccountProfileStateService.hasPremiumPersonally$(account.id)
+            : of(false),
+        ),
+      ),
       this.environmentService.cloudWebVaultUrl$,
     ])
       .pipe(

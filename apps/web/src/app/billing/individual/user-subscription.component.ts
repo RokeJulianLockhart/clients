@@ -3,6 +3,7 @@ import { Router } from "@angular/router";
 import { firstValueFrom, lastValueFrom } from "rxjs";
 
 import { ApiService } from "@bitwarden/common/abstractions/api.service";
+import { AccountService } from "@bitwarden/common/auth/abstractions/account.service";
 import { BillingAccountProfileStateService } from "@bitwarden/common/billing/abstractions/account/billing-account-profile-state.service";
 import { SubscriptionResponse } from "@bitwarden/common/billing/models/response/subscription.response";
 import { FeatureFlag } from "@bitwarden/common/enums/feature-flag.enum";
@@ -58,6 +59,7 @@ export class UserSubscriptionComponent implements OnInit {
     private billingAccountProfileStateService: BillingAccountProfileStateService,
     private toastService: ToastService,
     private configService: ConfigService,
+    private accountService: AccountService,
   ) {
     this.selfHosted = this.platformUtilsService.isSelfHost();
   }
@@ -73,7 +75,13 @@ export class UserSubscriptionComponent implements OnInit {
       return;
     }
 
-    if (await firstValueFrom(this.billingAccountProfileStateService.hasPremiumPersonally$)) {
+    const account = await firstValueFrom(this.accountService.activeAccount$);
+    if (
+      account &&
+      (await firstValueFrom(
+        this.billingAccountProfileStateService.hasPremiumPersonally$(account.id),
+      ))
+    ) {
       this.loading = true;
       this.sub = await this.apiService.getUserSubscription();
     } else {
