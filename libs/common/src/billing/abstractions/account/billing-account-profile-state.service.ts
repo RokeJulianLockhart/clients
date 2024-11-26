@@ -9,27 +9,29 @@ export type BillingAccountProfile = {
 
 export abstract class BillingAccountProfileStateService {
   /**
-   * Emits `true` when the active user's account has been granted premium from any of the
-   * organizations it is a member of. Otherwise, emits `false`
+   * Gets the premium status from organizations for a specific user
+   * @param userId The user to get the premium status for
    */
-  hasPremiumFromAnyOrganization$: Observable<boolean>;
+  abstract hasPremiumFromAnyOrganization$(userId: UserId): Observable<boolean>;
 
   /**
-   * Emits `true` when the active user's account has an active premium subscription at the
-   * individual user level
+   * Gets the personal premium status for a specific user
+   * @param userId The user to get the premium status for
    */
-  hasPremiumPersonally$: Observable<boolean>;
+  abstract hasPremiumPersonally$(userId: UserId): Observable<boolean>;
 
   /**
-   * Emits `true` when either `hasPremiumPersonally` or `hasPremiumFromAnyOrganization` is `true`
+   * Gets whether the user has premium from any source for a specific user
+   * @param userId The user to get the premium status for
    */
-  hasPremiumFromAnySource$: Observable<boolean>;
+  abstract hasPremiumFromAnySource$(userId: UserId): Observable<boolean>;
 
   /**
-   * Sets the active user's premium status fields upon every full sync, either from their personal
+   * Sets the user's premium status fields upon every full sync, either from their personal
    * subscription to premium, or an organization they're a part of that grants them premium.
-   * @param hasPremiumPersonally
-   * @param hasPremiumFromAnyOrganization
+   * @param hasPremiumPersonally Whether the user has premium personally
+   * @param hasPremiumFromAnyOrganization Whether the user has premium from any organization
+   * @param userId The user to set the premium status for
    */
   abstract setHasPremium(
     hasPremiumPersonally: boolean,
